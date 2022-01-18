@@ -1,0 +1,28 @@
+server:
+  # the port of the server
+  port: 8081
+
+spring:
+  influx:
+    # URL of the InfluxDB
+    url: http://localhost:8086
+    # username for the InfluxDB
+    user: ""
+    # password for the InfluxDB
+    password: ""
+
+  jackson:
+    serialization:
+      INDENT_OUTPUT: true
+
+dwh:
+  # secret to access the /dwh endpoint
+  token: my_secret
+
+  # the metrics and related queries to use and export
+  metrics:
+    - name: my-metric|${service}|${http_path}
+      query: |
+        SELECT SUM("sum") / SUM("count")
+        FROM "inspectit"."autogen"."http_in_responsetime"
+        GROUP BY time(${interval}), "service", "http_path" FILL(null)
