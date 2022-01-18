@@ -1,7 +1,7 @@
 package de.novatec.dwhexport;
 
-import de.novatec.dwhexport.configuration.model.MetricQuery;
 import de.novatec.dwhexport.configuration.model.DwhExporterSettings;
+import de.novatec.dwhexport.configuration.model.MetricQuery;
 import de.novatec.dwhexport.data.Metric;
 import de.novatec.dwhexport.data.MetricValue;
 import lombok.extern.slf4j.Slf4j;
@@ -35,15 +35,14 @@ public class MetricsController {
     private DwhExporterSettings metrics;
 
     @GetMapping("/dwh")
-    public ResponseEntity<?> collectMetrics(
-            @RequestParam(required = false) String interval,
-            @RequestParam(required = false) String range,
-            @RequestParam(required = false) String offset,
-            @RequestParam(required = false) Long start,
-            @RequestParam(required = false) Long end,
-            @RequestParam(required = false, defaultValue = "") String token) {
+    public ResponseEntity<?> collectMetrics(@RequestParam(required = false) String interval,
+                                            @RequestParam(required = false) String range,
+                                            @RequestParam(required = false) String offset,
+                                            @RequestParam(required = false) Long start,
+                                            @RequestParam(required = false) Long end,
+                                            @RequestParam(required = false, defaultValue = "") String token) {
 
-        if(!metrics.getToken().equalsIgnoreCase(token)) {
+        if (!metrics.getToken().equalsIgnoreCase(token)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
         }
 
@@ -51,11 +50,9 @@ public class MetricsController {
                 .map(DurationStyle.SIMPLE::parse)
                 .orElse(Duration.ofMinutes(1));
 
-
-        if(start != null || end != null) {
-            if(range != null ||offset != null) {
-                return ResponseEntity
-                        .badRequest()
+        if (start != null || end != null) {
+            if (range != null || offset != null) {
+                return ResponseEntity.badRequest()
                         .body("You must either specify 'start' and 'end' or 'range' and 'offset', but not both!");
             }
             return processExplicitStartEndRequest(start, end, intervalDur);
@@ -65,13 +62,9 @@ public class MetricsController {
     }
 
     private ResponseEntity<?> processRangeOffsetRequest(String range, String offset, Duration intervalDur) {
-        Duration rangeDur = Optional.ofNullable(range)
-                .map(DurationStyle.SIMPLE::parse)
-                .orElse(intervalDur);
+        Duration rangeDur = Optional.ofNullable(range).map(DurationStyle.SIMPLE::parse).orElse(intervalDur);
 
-        Duration offsetDur = Optional.ofNullable(offset)
-                .map(DurationStyle.SIMPLE::parse)
-                .orElse(Duration.ofMinutes(1));
+        Duration offsetDur = Optional.ofNullable(offset).map(DurationStyle.SIMPLE::parse).orElse(Duration.ofMinutes(1));
 
         long now = System.currentTimeMillis();
         long endTime = (now - offsetDur.toMillis()) / intervalDur.toMillis() * intervalDur.toMillis();
@@ -81,14 +74,11 @@ public class MetricsController {
     }
 
     private ResponseEntity<?> processExplicitStartEndRequest(Long start, Long end, Duration intervalDur) {
-        if(start == null || end == null) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("You must specify both 'start' and 'end'!");
+        if (start == null || end == null) {
+            return ResponseEntity.badRequest().body("You must specify both 'start' and 'end'!");
         }
-        if(start % intervalDur.toMillis() != 0 || end % intervalDur.toMillis() != 0) {
-            return ResponseEntity
-                    .badRequest()
+        if (start % intervalDur.toMillis() != 0 || end % intervalDur.toMillis() != 0) {
+            return ResponseEntity.badRequest()
                     .body("The 'start' and 'end' timestamps must be aligned to the given interval!");
         }
         List<Metric> body = queryMetrics(intervalDur, start, end);
@@ -108,25 +98,26 @@ public class MetricsController {
             long extendedStartTime = startTime - intervalMillis;
 
             QueryResult data = executeQuery(metric.getQuery(), extendedStartTime, endTime, interval);
-            if(data.getResults() != null) {
-                return data.getResults().stream()
+            if (data.getResults() != null) {
+                return data.getResults()
+                        .stream()
                         .filter(r -> r.getSeries() != null)
                         .flatMap(r -> r.getSeries().stream())
-                        .map(series -> getResultsFromSeries(metric,series, startTime, endTime))
+                        .map(series -> getResultsFromSeries(metric, series, startTime, endTime))
                         .collect(Collectors.toList());
             }
-        } catch(Exception e) {
+        } catch (Exception e) {
             log.error("Error fetching data for {}", metric.getName(), e);
         }
         return Collections.emptyList();
     }
 
     private Metric getResultsFromSeries(MetricQuery metric, QueryResult.Series series, long startTime, long endTime) {
-        if(series.getColumns().size() != 2) {
+        if (series.getColumns().size() != 2) {
             throw new IllegalArgumentException("Query returned more than one field!");
         }
 
-        Map<String,String> tagsLowerCase = keysToLowerCase(series.getTags());
+        Map<String, String> tagsLowerCase = keysToLowerCase(series.getTags());
         StringLookup tagLookup = variable -> tagsLowerCase.getOrDefault(variable.toLowerCase(), "");
 
         int timeColumnIndex = series.getColumns().indexOf("time");
@@ -134,13 +125,13 @@ public class MetricsController {
 
         Metric.MetricBuilder builder = Metric.builder();
         builder.metricPath(new StringSubstitutor(tagLookup).replace(metric.getName()));
-        for(List<Object> value : series.getValues()) {
+        for (List<Object> value : series.getValues()) {
             Object timeCol = value.get(timeColumnIndex);
             Object valueCol = value.get(valueColumnIndex);
-            if(timeCol instanceof Number && valueCol instanceof Number) {
-                long timeMillis = ((Number)timeCol).longValue();
-                double resultValue = ((Number)valueCol).doubleValue();
-                if(timeMillis >= startTime && timeMillis < endTime) {
+            if (timeCol instanceof Number && valueCol instanceof Number) {
+                long timeMillis = ((Number) timeCol).longValue();
+                double resultValue = ((Number) valueCol).doubleValue();
+                if (timeMillis >= startTime && timeMillis < endTime) {
                     builder.metricValue(MetricValue.builder().startInMillis(timeMillis).value(resultValue).build());
                 }
             }
@@ -153,8 +144,7 @@ public class MetricsController {
             return Collections.emptyMap();
         }
 
-        return map.entrySet().stream()
-                .collect(Collectors.toMap(e -> e.getKey().toLowerCase(), Map.Entry::getValue));
+        return map.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().toLowerCase(), Map.Entry::getValue));
     }
 
     private QueryResult executeQuery(String parametrizedQuery, long startMillis, long endMillis, Duration interval) {
@@ -165,7 +155,7 @@ public class MetricsController {
             if (variable.equalsIgnoreCase("timeFilter")) {
                 return buildTimeFilter(startMillis, endMillis);
             }
-            throw new IllegalArgumentException("Unknown query variable: "+variable);
+            throw new IllegalArgumentException("Unknown query variable: " + variable);
         };
         StringSubstitutor subst = new StringSubstitutor(lookup);
         String queryString = subst.replace(parametrizedQuery);
@@ -174,7 +164,6 @@ public class MetricsController {
     }
 
     private String buildTimeFilter(long startMillis, long endMillis) {
-        return "(time >= " + startMillis + "000000" +
-                " AND time < " + endMillis + "000000)";
+        return "(time >= " + startMillis + "000000" + " AND time < " + endMillis + "000000)";
     }
 }

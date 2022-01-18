@@ -9,7 +9,7 @@ import javax.validation.constraints.NotNull;
 import java.util.List;
 
 @Data
-@ConfigurationProperties(prefix="dwh")
+@ConfigurationProperties(prefix = "dwh")
 @Configuration
 @Validated
 public class DwhExporterSettings {
