@@ -109,5 +109,5 @@ Using this configuration, the health endpoint provides the following result:
 
 ## SBOM
 
-To generate a software bill of materials (SBOM), execute the gradle task cyclonedxBom.
+To generate a software bill of materials (SBOM), execute the gradle task `cyclonedxBom`.
 It will save the BOM into the folder build/reports.
