@@ -9,7 +9,7 @@ plugins {
 apply plugin: 'io.spring.dependency-management'
 
 group = 'de.novatec'
-version = '1.5'
+version = '1.6-SNAPSHOT'
 
 sourceCompatibility = '1.8'
 
