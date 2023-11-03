@@ -111,3 +111,8 @@ Using this configuration, the health endpoint provides the following result:
 
 To generate a software bill of materials (SBOM), execute the gradle task `cyclonedxBom`.
 It will save the BOM into the folder build/reports.
+
+##### How to Release
+
+Important tasks to check first are `dependencyUpdates` and `dependencyUpdates[Major|Minor]` for newer (patch, minor, major)
+versions and `dependencyCheckAnalyze` for security issues in the used dependencies. 
