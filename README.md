@@ -38,14 +38,13 @@ server:
   # the port of the server
   port: 8080
 
-spring:
-  influx:
-    # URL of the InfluxDB
-    url: http://localhost:8086
-    # username for the InfluxDB
-    user: ""
-    # password for the InfluxDB
-    password: ""
+influx:
+  url: http://localhost:8086
+  username: ""
+  password: ""
+  token: ""
+  org: ""
+  bucket: ""
 
 dwh:
   # secret to access the /dwh endpoint
@@ -54,6 +53,7 @@ dwh:
   # the metrics and related queries to use and export
   metrics:
     - name: my-metric|${service}|${http_path}
+      database: inspectit # also the bucket name
       query: |
         SELECT SUM("sum") / SUM("count")
         FROM "inspectit"."autogen"."http_in_responsetime"
@@ -63,10 +63,12 @@ dwh:
 ### Metrics Configuration
 
 A list of metrics that will be provided via the HTTP endpoint can be specified in `dwh.metrics`.
-Two parameters must be defined for each metric: `name` and `query`.
+Two parameters must be defined for each metric: `name`, `database` and `query`.
 
 `name` is the name of the resulting "metric view".
 The name can be parameterized using the tags of the underlying metric, as shown in the example above using `${service}` and `${http_path}`.
+
+`database` is the name of the database in InfluxDB. For InfluxDB version 2, use the bucket name.
 
 `query` is the InfluxDB query that is executed to retrieve the corresponding metric from InfluxDB.
 Here, the variable `${timeFilter}` should be used in the WHERE clause.
