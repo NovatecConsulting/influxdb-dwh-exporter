@@ -1,5 +1,8 @@
 package de.novatec.dwhexport;
 
+import com.influxdb.client.InfluxDBClient;
+import com.influxdb.client.domain.InfluxQLQuery;
+import com.influxdb.query.InfluxQLQueryResult;
 import de.novatec.dwhexport.configuration.model.DwhExporterSettings;
 import de.novatec.dwhexport.configuration.model.MetricQuery;
 import de.novatec.dwhexport.data.Metric;
@@ -7,9 +10,6 @@ import de.novatec.dwhexport.data.MetricValue;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.commons.text.lookup.StringLookup;
-import org.influxdb.InfluxDB;
-import org.influxdb.dto.Query;
-import org.influxdb.dto.QueryResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.http.HttpStatus;
@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 @RestController
@@ -29,7 +28,7 @@ import java.util.stream.Collectors;
 public class MetricsController {
 
     @Autowired
-    private InfluxDB influx;
+    private InfluxDBClient influx;
 
     @Autowired
     private DwhExporterSettings metrics;
@@ -97,22 +96,20 @@ public class MetricsController {
             long intervalMillis = interval.toMillis();
             long extendedStartTime = startTime - intervalMillis;
 
-            QueryResult data = executeQuery(metric.getQuery(), extendedStartTime, endTime, interval);
-            if (data.getResults() != null) {
-                return data.getResults()
-                        .stream()
-                        .filter(r -> r.getSeries() != null)
-                        .flatMap(r -> r.getSeries().stream())
-                        .map(series -> getResultsFromSeries(metric, series, startTime, endTime))
-                        .collect(Collectors.toList());
-            }
+            InfluxQLQueryResult data = executeQuery(metric, extendedStartTime, endTime, interval);
+            List<Metric> result = data.getResults()
+                    .stream()
+                    .flatMap(r -> r.getSeries().stream())
+                    .map(series -> getResultsFromSeries(metric, series, startTime, endTime))
+                    .toList();
+            return result;
         } catch (Exception e) {
             log.error("Error fetching data for {}", metric.getName(), e);
         }
         return Collections.emptyList();
     }
 
-    private Metric getResultsFromSeries(MetricQuery metric, QueryResult.Series series, long startTime, long endTime) {
+    private Metric getResultsFromSeries(MetricQuery metric, InfluxQLQueryResult.Series series, long startTime, long endTime) {
         if (series.getColumns().size() != 2) {
             throw new IllegalArgumentException("Query returned more than one field!");
         }
@@ -120,20 +117,25 @@ public class MetricsController {
         Map<String, String> tagsLowerCase = keysToLowerCase(series.getTags());
         StringLookup tagLookup = variable -> tagsLowerCase.getOrDefault(variable.toLowerCase(), "");
 
-        int timeColumnIndex = series.getColumns().indexOf("time");
+        int timeColumnIndex = series.getColumns().get("time");
         int valueColumnIndex = (timeColumnIndex + 1) % 2;
 
         Metric.MetricBuilder builder = Metric.builder();
         builder.metricPath(new StringSubstitutor(tagLookup).replace(metric.getName()));
-        for (List<Object> value : series.getValues()) {
-            Object timeCol = value.get(timeColumnIndex);
-            Object valueCol = value.get(valueColumnIndex);
-            if (timeCol instanceof Number && valueCol instanceof Number) {
-                long timeMillis = ((Number) timeCol).longValue();
-                double resultValue = ((Number) valueCol).doubleValue();
+        for (InfluxQLQueryResult.Series.Record record : series.getValues()) {
+            Object[] values = record.getValues();
+            Object timeCol = values[timeColumnIndex];
+            Object valueCol = values[valueColumnIndex];
+
+            try {
+                // convert nanos to millis
+                long timeMillis = Long.parseLong(timeCol.toString()) / 1000 / 1000;
+                double resultValue = Double.parseDouble(valueCol.toString());
                 if (timeMillis >= startTime && timeMillis < endTime) {
                     builder.metricValue(MetricValue.builder().startInMillis(timeMillis).value(resultValue).build());
                 }
+            } catch (NumberFormatException e) {
+                // Ignore value
             }
         }
         return builder.build();
@@ -147,7 +149,7 @@ public class MetricsController {
         return map.entrySet().stream().collect(Collectors.toMap(e -> e.getKey().toLowerCase(), Map.Entry::getValue));
     }
 
-    private QueryResult executeQuery(String parametrizedQuery, long startMillis, long endMillis, Duration interval) {
+    private InfluxQLQueryResult executeQuery(MetricQuery metric, long startMillis, long endMillis, Duration interval) {
         StringLookup lookup = (variable) -> {
             if (variable.equalsIgnoreCase("interval")) {
                 return DurationStyle.SIMPLE.print(interval);
@@ -158,9 +160,13 @@ public class MetricsController {
             throw new IllegalArgumentException("Unknown query variable: " + variable);
         };
         StringSubstitutor subst = new StringSubstitutor(lookup);
+        String parametrizedQuery = metric.getQuery();
         String queryString = subst.replace(parametrizedQuery);
         log.debug("Executing query: {}", queryString);
-        return influx.query(new Query(queryString), TimeUnit.MILLISECONDS);
+
+        // We still use InfluxQL instead of Flux
+        InfluxQLQuery influxQLQuery = new InfluxQLQuery(queryString, metric.getDatabase());
+        return influx.getInfluxQLQueryApi().query(influxQLQuery);
     }
 
     private String buildTimeFilter(long startMillis, long endMillis) {

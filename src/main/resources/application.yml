@@ -1,20 +1,35 @@
+### SPRING CONFIGURATION ###
 server:
   # the port of the server
   port: 8081
 
 spring:
-  influx:
-    # URL of the InfluxDB
-    url: http://localhost:8086
-    # username for the InfluxDB
-    user: ""
-    # password for the InfluxDB
-    password: ""
-
   jackson:
     serialization:
       INDENT_OUTPUT: true
 
+### INFLUX (v2) CONFIGURATION ###
+# Client
+influx:
+  url: http://localhost:8086
+  username: ""
+  password: ""
+  token: ""
+  org: ""
+  bucket: ""
+  logLevel: BASIC # The log level for logging the HTTP request and HTTP response
+  readTimeout: 10s # Read timeout for OkHttpClient
+  writeTimeout: 10s # Write timeout for OkHttpClient
+  connectTimeout: 10s # Connection timeout for OkHttpClient
+
+# Micrometer registry
+management:
+  influx:
+    metrics:
+      export:
+        enabled: false
+
+### DWH CONFIGURATION ###
 dwh:
   # secret to access the /dwh endpoint
   token: my_secret
