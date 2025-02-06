@@ -37,6 +37,7 @@ dwh:
   # the metrics and related queries to use and export
   metrics:
     - name: my-metric|${service}|${http_path}
+      database: inspectit
       query: |
         SELECT SUM("sum") / SUM("count")
         FROM "inspectit"."autogen"."http_in_responsetime"
