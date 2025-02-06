@@ -43,7 +43,7 @@ dependencies {
             'org.springframework.boot:spring-boot-starter-validation',
 
             "org.apache.commons:commons-text:${commonsTextVersion}",
-            "org.influxdb:influxdb-java:${influxdbJavaVersion}",
+            "com.influxdb:influxdb-spring:${influxdbSpringVersion}"
     )
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
