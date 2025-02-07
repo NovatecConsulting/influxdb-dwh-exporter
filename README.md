@@ -43,8 +43,6 @@ influx:
   username: ""
   password: ""
   token: ""
-  org: ""
-  bucket: ""
 
 dwh:
   # secret to access the /dwh endpoint

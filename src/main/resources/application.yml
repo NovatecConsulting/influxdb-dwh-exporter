@@ -15,8 +15,8 @@ influx:
   username: ""
   password: ""
   token: ""
-  org: ""
-  bucket: ""
+  org: "" # optional
+  bucket: "" # optional
   logLevel: BASIC # The log level for logging the HTTP request and HTTP response
   readTimeout: 10s # Read timeout for OkHttpClient
   writeTimeout: 10s # Write timeout for OkHttpClient
