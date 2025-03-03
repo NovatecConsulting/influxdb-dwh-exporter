@@ -19,6 +19,12 @@ public class DwhExporterSettings {
      */
     private String token = "";
 
+    /**
+     * True, if the database for queries should be extracted via regex from the query body.
+     * False, if the database should be explicitly specified for every query.
+     */
+    private boolean deriveDatabaseFromQuery = false;
+
     @NotNull
     private List<MetricQuery> metrics;
 }
