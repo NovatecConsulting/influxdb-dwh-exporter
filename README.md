@@ -48,6 +48,9 @@ dwh:
   # secret to access the /dwh endpoint
   token: my_secret
 
+  # extract the database from the query via regex
+  derive-database-from-query: false
+
   # the metrics and related queries to use and export
   metrics:
     - name: my-metric|${service}|${http_path}
@@ -75,6 +78,13 @@ Also, `{interval}` should be used as "GROUP BY time" interval!
 It is important that **exactly** the tags used for parameterization in `name` are also used in the GROUP BY-clause!
 
 When the endpoint provided by the application is called, the exporter executes **all** configured queries and returns the corresponding result.
+
+#### Derive database from query
+
+If the property `dwh.derive-database-from-query` is set to true and no `database` was explicitly specified for a query,
+the service will try to extract the database via regex. By default, the property is set to false.
+If the `database` is specified, it will always be used for the particular query!
+The property should reduce the effort to specify the database for a long list of simple queries.
 
 ### Health Endpoint
 

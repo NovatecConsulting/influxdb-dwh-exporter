@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.text.StringSubstitutor;
 import org.apache.commons.text.lookup.StringLookup;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.stereotype.Component;
 
@@ -24,7 +23,7 @@ public class MetricsQuerier {
 
     private InfluxDBClient influx;
 
-    public InfluxQLQueryResult executeQuery(MetricQuery metric, long startMillis, long endMillis, Duration interval) {
+    public InfluxQLQueryResult executeQuery(MetricQuery metric, String database, long startMillis, long endMillis, Duration interval) {
         StringLookup lookup = buildVariableLookUp(startMillis, endMillis, interval);
         StringSubstitutor subst = new StringSubstitutor(lookup);
 
@@ -33,7 +32,7 @@ public class MetricsQuerier {
         log.debug("Executing query: {}", queryString);
 
         // We still use InfluxQL instead of Flux
-        InfluxQLQuery influxQLQuery = new InfluxQLQuery(queryString, metric.getDatabase());
+        InfluxQLQuery influxQLQuery = new InfluxQLQuery(queryString, database);
         return influx.getInfluxQLQueryApi().query(influxQLQuery);
     }
 
