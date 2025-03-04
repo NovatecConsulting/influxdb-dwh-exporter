@@ -34,6 +34,9 @@ dwh:
   # secret to access the /dwh endpoint
   token: my_secret
 
+  # extract the database from the query via regex
+  derive-database-from-query: false
+
   # the metrics and related queries to use and export
   metrics:
     - name: my-metric|${service}|${http_path}

@@ -6,9 +6,9 @@ import de.novatec.dwhexport.configuration.model.MetricQuery;
 import de.novatec.dwhexport.data.Metric;
 import de.novatec.dwhexport.service.influx.MetricsMapper;
 import de.novatec.dwhexport.service.influx.MetricsQuerier;
+import de.novatec.dwhexport.service.influx.QueryExtractor;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.convert.DurationStyle;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -25,6 +25,8 @@ public class MetricsService {
     private MetricsQuerier querier;
 
     private MetricsMapper mapper;
+
+    private QueryExtractor extractor;
 
     private DwhExporterSettings metrics;
 
@@ -63,13 +65,28 @@ public class MetricsService {
         try {
             long intervalMillis = interval.toMillis();
             long extendedStartTime = startTime - intervalMillis;
+            String database = getDatabase(metric);
 
-            InfluxQLQueryResult data = querier.executeQuery(metric, extendedStartTime, endTime, interval);
+            InfluxQLQueryResult data = querier.executeQuery(metric, database, extendedStartTime, endTime, interval);
 
             return mapper.map(data, metric, startTime, endTime);
         } catch (Exception e) {
             log.error("Error fetching data for {}", metric.getName(), e);
         }
         return Collections.emptyList();
+    }
+
+    /**
+     * Get the database for the {@link com.influxdb.client.domain.InfluxQLQuery}.
+     * If a database was specified explicitly, use the provided value.
+     * If no database was specified AND the option to derive it from the query is enabled, extract the database from
+     * the query body.
+     *
+     * @param metric the metric query
+     * @return the database to use for the query
+     */
+    private String getDatabase(MetricQuery metric) {
+        if(metric.getDatabase().isBlank() && metrics.isDeriveDatabaseFromQuery()) return extractor.extractDatabase(metric.getQuery());
+        else return metric.getDatabase();
     }
 }
